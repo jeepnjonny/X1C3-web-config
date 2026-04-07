@@ -880,8 +880,8 @@
             <input type="number" id="f-ip-port" min="0" max="65535" placeholder="2244">
           </div>
           <div class="field">
-            <label>IP Address / URL <span class="hint">31 chars</span></label>
-            <input type="text" id="f-ip-addr" maxlength="31" placeholder="202.141.176.2">
+            <label>IP Address / URL <span class="hint">30 chars</span></label>
+            <input type="text" id="f-ip-addr" maxlength="30" placeholder="202.141.176.2">
           </div>
         </div>
       </div>
@@ -1254,36 +1254,40 @@ function readStr(offset, len) {
   let s = '';
   for (let i = 0; i < len; i++) {
     const b = eeprom[offset + i];
-    if (b === 0) break;
+    if (b === 0 || b === 0xff) break;
     s += String.fromCharCode(b);
   }
   return s;
 }
 
-function writeStr(offset, len, str, padByte=0x00) {
+function writeStr(offset, len, str, padByte=0xff) {
   for (let i = 0; i < len; i++) {
-    eeprom[offset+i] = i < str.length ? str.charCodeAt(i) : padByte;
+    if (i < str.length) {
+      eeprom[offset + i] = str.charCodeAt(i);
+    } else if (i === str.length) {
+      eeprom[offset + i] = 0x00;
+    } else {
+      eeprom[offset + i] = padByte;
+    }
   }
 }
 
-function readFreq(offset) {
-  // format: "1,<f>,<f>,0,3,0,0\r\n"
+function readFreqs(offset) {
   let s = '';
-  for (let i = offset; i < offset+20; i++) {
+  for (let i = offset; i < offset + 30; i++) {
     const b = eeprom[i];
     if (b === 0 || b === 0xff) break;
     if (b === 13 || b === 10) break;
     s += String.fromCharCode(b);
   }
-  // extract freq from "1,144.6400,144.6400,0,3,0,0"
   const parts = s.split(',');
-  return parts.length >= 2 ? parts[1] : '';
+  return [parts[1] || '', parts[2] || ''];
 }
 
-function writeFreq(offset, freqStr) {
-  const full = `1,${freqStr},${freqStr},0,3,0,0\r\n`;
-  for (let i = 0; i < 16; i++) {
-    eeprom[offset+i] = i < full.length ? full.charCodeAt(i) : 0xff;
+function writeFreq(offset, freq1, freq2) {
+  const full = `1,${freq1},${freq2},0,3,0,0\r\n`;
+  for (let i = 0; i < 30; i++) {
+    eeprom[offset + i] = i < full.length ? full.charCodeAt(i) : 0xff;
   }
 }
 
@@ -1296,168 +1300,105 @@ function packEeprom() {
   const gc = id => g(id).checked ? 1 : 0;
   const gs = id => g(id).value;
 
-  // Callsign (0x0D–0x13, 7 bytes)
-  writeStr(0x0D, 7, gs('f-callsign').padEnd(6,' '));
-
-  // SSID 0x14
-  eeprom[0x14] = gi('f-ssid');
-  // MIC-E enable 0x15
-  eeprom[0x15] = gc('f-mice-enable');
-  // MIC-E code 0x16
-  eeprom[0x16] = gi('f-mice-code');
-  // Type 0x17
-  eeprom[0x17] = gs('f-type').charCodeAt(0) || 0x21;
-  // Icon1 0x18–0x19
-  const ic1 = gs('f-icon1');
-  eeprom[0x18] = ic1.charCodeAt(0) || 0x2F;
-  eeprom[0x19] = ic1.charCodeAt(1) || 0x5B;
-  // BT Out2 0x1A, BT Out1 0x1B
-  eeprom[0x1A] = gi('f-bt-out2');
-  eeprom[0x1B] = gi('f-bt-out1');
-
-  // Time value 0x05–0x06 (2 bytes, decimal digits as ASCII? store as 2-byte LE int)
+  // Time fields (big-endian)
   const tv = gi('f-time-value');
-  eeprom[0x05] = tv >> 8;
-  eeprom[0x06] = tv & 0xff;
-  // Time enable 0x07, Manual enable 0x08, Smart mode 0x09
-  eeprom[0x07] = gc('f-time-enable');
-  eeprom[0x08] = gc('f-manual-enable');
-  eeprom[0x09] = gi('f-smart-mode');
-  // Queue enable 0x0A, Queue time 0x0B
-  eeprom[0x0A] = gc('f-queue-enable');
-  eeprom[0x0B] = gi('f-queue-time');
-  // PTT delay 0x0C
-  eeprom[0x0C] = gi('f-ptt-delay');
+  eeprom[0x00] = tv >> 8;
+  eeprom[0x01] = tv & 0xff;
+  eeprom[0x02] = gc('f-time-enable');
+  eeprom[0x03] = gc('f-manual-enable');
+  eeprom[0x04] = gi('f-smart-mode');
+  eeprom[0x05] = gc('f-queue-enable');
+  eeprom[0x06] = gi('f-queue-time');
+  eeprom[0x07] = gi('f-ptt-delay');
 
-  // Latitude 0x25–0x2C (8 bytes: 7 digits + N/S)
-  const lat = gs('f-lat').padEnd(7,'\x00');
-  writeStr(0x25, 7, lat);
-  eeprom[0x2C] = gs('f-lat-dir') === 'N' ? 0x4E : 0x53;
-  eeprom[0x2D] = 0x00;
+  // Callsign and station identity
+  writeStr(0x08, 7, gs('f-callsign').padEnd(7, ' '));
+  eeprom[0x0F] = gi('f-ssid');
+  eeprom[0x10] = gc('f-mice-enable');
+  eeprom[0x11] = gi('f-mice-code');
+  eeprom[0x12] = gs('f-type').charCodeAt(0) || 0x21;
+  const ic1 = gs('f-icon1');
+  eeprom[0x13] = ic1.charCodeAt(0) || 0x2F;
+  eeprom[0x14] = ic1.charCodeAt(1) || 0x5B;
+  eeprom[0x15] = gi('f-bt-out2');
+  eeprom[0x16] = gi('f-bt-out1');
 
-  // Longitude 0x35–0x3D (9 bytes: 7 digits + E/W)
-  const lon = gs('f-lon').padEnd(7,'\x00');
-  writeStr(0x35, 7, lon);
-  eeprom[0x3C] = gs('f-lon-dir') === 'E' ? 0x45 : 0x57;
-  eeprom[0x3D] = 0x00;
+  // Fixed position
+  writeStr(0x20, 9, gs('f-lat') + gs('f-lat-dir'));
+  writeStr(0x30, 9, gs('f-lon') + gs('f-lon-dir'));
 
-  // Site type 0x2F
-  eeprom[0x2F] = gi('f-site-type');
-  // GPS enable 0x30
-  eeprom[0x30] = gc('f-gps-en');
-  // Timezone offset 0x31
-  eeprom[0x31] = gi('f-tz');
-  // GPS save 0x32
-  eeprom[0x32] = gc('f-gps-save');
-  // Beep RX 0x33, Beep TX 0x34
-  eeprom[0x33] = gc('f-beep-rx');
-  eeprom[0x34] = gc('f-beep-tx');
+  eeprom[0x2A] = gi('f-site-type');
+  eeprom[0x2B] = gc('f-gps-en');
+  eeprom[0x2C] = gi('f-tz');
+  eeprom[0x2D] = gc('f-gps-save');
+  eeprom[0x2E] = gc('f-beep-rx');
+  eeprom[0x2F] = gc('f-beep-tx');
 
-  // BT Enable 0x3F
-  eeprom[0x3F] = gc('f-bt-en');
+  // Payload and beacon options
+  eeprom[0x3A] = gc('f-pres-en');
+  eeprom[0x3B] = gc('f-volt-en');
+  eeprom[0x3C] = gc('f-temp-en');
+  eeprom[0x3D] = gc('f-mile-en');
+  eeprom[0x3E] = gc('f-sat-en');
 
-  // Pressure 0x40, Voltage 0x41, Temp 0x42, Mileage 0x43, Satellite 0x44
-  eeprom[0x40] = gc('f-pres-en');
-  eeprom[0x41] = gc('f-volt-en');
-  eeprom[0x42] = gc('f-temp-en');
-  eeprom[0x43] = gc('f-mile-en');
-  eeprom[0x44] = gc('f-sat-en');
+  writeStr(0x40, 63, gs('f-message'));
+  for (let i = 0x7F; i < 0x82; i++) eeprom[i] = 0xff;
 
-  // Message 0x45 (31 bytes + null)
-  writeStr(0x45, 31, gs('f-message'));
-  eeprom[0x45+gs('f-message').length] = 0x00;
-  // pad rest with 0xff
-  for (let i = 0x45+gs('f-message').length+1; i < 0x64; i++) eeprom[i] = 0xff;
+  // RF module
+  eeprom[0xA0] = gi('f-rf-power');
+  eeprom[0xA1] = gi('f-rf-vol');
+  eeprom[0xA2] = gi('f-rf-mic');
+  eeprom[0xA4] = gi('f-no-rx-off');
 
-  // RF Module Power 0xA5, Volume 0xA6, Mic 0xA7
-  eeprom[0xA5] = gi('f-rf-power');
-  eeprom[0xA6] = gi('f-rf-vol');
-  eeprom[0xA7] = gi('f-rf-mic');
-
-  // No Rx Power Off 0xA9
-  eeprom[0xA9] = gi('f-no-rx-off');
-
-  // WiFi Enable 0xB4
-  eeprom[0xB4] = gc('f-wifi-en');
-  // IP Protocol 0xB8
-  eeprom[0xB8] = gi('f-ip-proto');
-  // IP Port 0xB9–0xBA (big-endian)
+  // WiFi / IP
+  eeprom[0xAF] = gc('f-wifi-en');
+  eeprom[0xB3] = gi('f-ip-proto');
   const port_ = gi('f-ip-port');
-  eeprom[0xB9] = port_ >> 8;
-  eeprom[0xBA] = port_ & 0xff;
+  eeprom[0xB4] = port_ >> 8;
+  eeprom[0xB5] = port_ & 0xff;
+  eeprom[0xBB] = gc('f-odo-en');
 
-  // Odometer 0xC0
-  eeprom[0xC0] = gc('f-odo-en');
-
-  // Icon2 0xC1–0xC2
   const ic2 = gs('f-icon2');
-  eeprom[0xC1] = ic2.charCodeAt(0) || 0x5C;
-  eeprom[0xC2] = ic2.charCodeAt(1) || 0x50;
-
-  // Icon2 Time 0xC3–0xC4 (big-endian 2 bytes)
+  eeprom[0xBC] = ic2.charCodeAt(0) || 0x5C;
+  eeprom[0xBD] = ic2.charCodeAt(1) || 0x50;
   const it = gi('f-icon2-time');
-  eeprom[0xC3] = it >> 8;
-  eeprom[0xC4] = it & 0xff;
+  eeprom[0xBE] = it >> 8;
+  eeprom[0xBF] = it & 0xff;
 
-  // IP Address 0xC5 (31 bytes + 0xff)
-  writeStr(0xC5, 31, gs('f-ip-addr'), 0x00);
-  eeprom[0xC5 + gs('f-ip-addr').length] = 0x00;
+  writeStr(0xC0, 30, gs('f-ip-addr'), 0x00);
+  writeStr(0x100, 16, gs('f-wifi-ssid'), 0x00);
+  writeStr(0x110, 16, gs('f-wifi-pass'), 0x00);
 
-  // Wifi Name 0x105 (16 bytes)
-  writeStr(0x105, 16, gs('f-wifi-ssid'));
-  // Wifi password 0x115 (16 bytes)
-  writeStr(0x115, 16, gs('f-wifi-pass'));
-
-  // Altitude 0x12E (2 bytes LE)
   const alt = gi('f-altitude');
-  eeprom[0x12E] = alt & 0xff;
-  eeprom[0x12F] = alt >> 8;
+  eeprom[0x129] = alt >> 8;
+  eeprom[0x12A] = alt & 0xff;
 
-  // X1C5 fields
-  eeprom[0x133] = gc('f-x5-lastpos');
-  eeprom[0x134] = gc('f-x5-noknot');
-  eeprom[0x135] = gc('f-x5-alarm');
-  eeprom[0x136] = gc('f-x5-emer');
+  // X1C5 extras
+  eeprom[0x12E] = gc('f-x5-lastpos');
+  eeprom[0x12F] = gc('f-x5-noknot');
+  eeprom[0x130] = gc('f-x5-alarm');
+  eeprom[0x131] = gc('f-x5-emer');
 
-  // Volume TX 0x1D8, Volume RX 0x1D9
-  eeprom[0x1D8] = gi('f-vol-tx');
-  eeprom[0x1D9] = gi('f-vol-rx');
-  // Digi Delay 0x1DA, Digi Channel 0x1DB, Beacon Channel 0x1DC
-  eeprom[0x1DA] = gi('f-digi-delay');
-  eeprom[0x1DB] = gi('f-digi-ch');
-  eeprom[0x1DC] = gi('f-beacon-ch');
+  eeprom[0x1D3] = gi('f-vol-tx');
+  eeprom[0x1D4] = gi('f-vol-rx');
+  eeprom[0x1D5] = gi('f-digi-delay');
+  eeprom[0x1D6] = gi('f-digi-ch');
+  eeprom[0x1D7] = gi('f-beacon-ch');
 
-  // Remote code 0x1DD (6 chars)
-  writeStr(0x1DD, 6, gs('f-remote-code'));
-  eeprom[0x1DD+gs('f-remote-code').length] = 0x00;
+  writeFreq(0x82, gs('f-freq1'), gs('f-freq2'));
 
-  // X1C5 Backlight 0x1E4
-  eeprom[0x1E4] = gi('f-x5-backlight');
+  writeStr(0x1AF, 32, gs('f-emer-msg'));
+  eeprom[0x1DF] = gi('f-x5-backlight');
 
-  // Path1 0x1E5 (6 bytes), Path1 Hops 0x1EC
-  writeStr(0x1E5, 6, gs('f-path1'));
-  eeprom[0x1EC] = gi('f-path1-hops');
-  // Path2 0x1ED (6 bytes), Path2 Hops 0x1F4
-  writeStr(0x1ED, 6, gs('f-path2'));
-  eeprom[0x1F4] = gi('f-path2-hops');
+  writeStr(0x1E0, 6, gs('f-path1'));
+  eeprom[0x1E7] = gi('f-path1-hops');
+  writeStr(0x1E8, 6, gs('f-path2'));
+  eeprom[0x1EF] = gi('f-path2-hops');
 
-  // Digi1 0x1F5 (6 bytes), Digi1 Enable 0x1FC
-  writeStr(0x1F5, 6, gs('f-digi1'));
-  eeprom[0x1FC] = gc('f-digi1-en');
-  // Digi2 0x1FD (6 bytes), Digi2 Enable 0x204
-  writeStr(0x1FD, 6, gs('f-digi2'));
-  eeprom[0x204] = gc('f-digi2-en');
-
-  // Freq1 0x87, Freq2 0x90
-  writeFreq(0x87, gs('f-freq1'));
-  writeFreq(0x90, gs('f-freq2'));
-
-  // Emergency Message 0x1B4
-  writeStr(0x1B4, 31, gs('f-emer-msg'));
-  eeprom[0x1B4+gs('f-emer-msg').length] = 0x00;
-
-  // X1C5 Brightness 0x1D6
-  eeprom[0x1D6] = gi('f-x5-bright');
+  writeStr(0x1F0, 6, gs('f-digi1'));
+  eeprom[0x1F7] = gc('f-digi1-en');
+  writeStr(0x1F8, 6, gs('f-digi2'));
+  eeprom[0x1FF] = gc('f-digi2-en');
 }
 
 // ══════════════════════════════════════════
@@ -1467,94 +1408,94 @@ function updateUI() {
   const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
   const setc = (id, val) => { const el = document.getElementById(id); if(el) el.checked = !!val; };
 
-  set('f-callsign', readStr(0x0D, 7).trimEnd());
-  set('f-ssid', eeprom[0x14]);
-  setc('f-mice-enable', eeprom[0x15]);
-  set('f-mice-code', eeprom[0x16]);
-  set('f-type', String.fromCharCode(eeprom[0x17]));
-  set('f-icon1', String.fromCharCode(eeprom[0x18]) + String.fromCharCode(eeprom[0x19]));
-  set('f-bt-out2', eeprom[0x1A]);
-  set('f-bt-out1', eeprom[0x1B]);
+  set('f-callsign', readStr(0x08, 7).trimEnd());
+  set('f-ssid', eeprom[0x0F]);
+  setc('f-mice-enable', eeprom[0x10]);
+  set('f-mice-code', eeprom[0x11]);
+  set('f-type', String.fromCharCode(eeprom[0x12]));
+  set('f-icon1', String.fromCharCode(eeprom[0x13]) + String.fromCharCode(eeprom[0x14]));
+  set('f-bt-out2', eeprom[0x15]);
+  set('f-bt-out1', eeprom[0x16]);
 
   // Time value (2 bytes big-endian)
-  set('f-time-value', (eeprom[0x05] << 8) | eeprom[0x06]);
-  setc('f-time-enable', eeprom[0x07]);
-  setc('f-manual-enable', eeprom[0x08]);
-  set('f-smart-mode', eeprom[0x09]);
-  setc('f-queue-enable', eeprom[0x0A]);
-  set('f-queue-time', eeprom[0x0B]);
-  set('f-ptt-delay', eeprom[0x0C]);
+  set('f-time-value', (eeprom[0x00] << 8) | eeprom[0x01]);
+  setc('f-time-enable', eeprom[0x02]);
+  setc('f-manual-enable', eeprom[0x03]);
+  set('f-smart-mode', eeprom[0x04]);
+  setc('f-queue-enable', eeprom[0x05]);
+  set('f-queue-time', eeprom[0x06]);
+  set('f-ptt-delay', eeprom[0x07]);
 
-  // Latitude
-  set('f-lat', readStr(0x25, 7));
-  set('f-lat-dir', eeprom[0x2C] === 0x53 ? 'S' : 'N');
-  // Longitude
-  set('f-lon', readStr(0x35, 7));
-  set('f-lon-dir', eeprom[0x3C] === 0x57 ? 'W' : 'E');
+  const lat = readStr(0x20, 9);
+  set('f-lat', lat.slice(0, -1));
+  set('f-lat-dir', lat.endsWith('S') ? 'S' : 'N');
+  const lon = readStr(0x30, 9);
+  set('f-lon', lon.slice(0, -1));
+  set('f-lon-dir', lon.endsWith('W') ? 'W' : 'E');
 
-  set('f-site-type', eeprom[0x2F]);
-  setc('f-gps-en', eeprom[0x30]);
-  set('f-tz', eeprom[0x31]);
-  setc('f-gps-save', eeprom[0x32]);
-  setc('f-beep-rx', eeprom[0x33]);
-  setc('f-beep-tx', eeprom[0x34]);
+  set('f-site-type', eeprom[0x2A]);
+  setc('f-gps-en', eeprom[0x2B]);
+  set('f-tz', eeprom[0x2C]);
+  setc('f-gps-save', eeprom[0x2D]);
+  setc('f-beep-rx', eeprom[0x2E]);
+  setc('f-beep-tx', eeprom[0x2F]);
 
-  setc('f-bt-en', eeprom[0x3F]);
-  setc('f-pres-en', eeprom[0x40]);
-  setc('f-volt-en', eeprom[0x41]);
-  setc('f-temp-en', eeprom[0x42]);
-  setc('f-mile-en', eeprom[0x43]);
-  setc('f-sat-en', eeprom[0x44]);
+  setc('f-bt-en', eeprom[0x39]);
+  setc('f-pres-en', eeprom[0x3A]);
+  setc('f-volt-en', eeprom[0x3B]);
+  setc('f-temp-en', eeprom[0x3C]);
+  setc('f-mile-en', eeprom[0x3D]);
+  setc('f-sat-en', eeprom[0x3E]);
 
-  // Message
-  set('f-message', readStr(0x45, 31));
+  set('f-message', readStr(0x40, 63));
 
-  set('f-rf-power', eeprom[0xA5]);
-  set('f-rf-vol', eeprom[0xA6]);
-  set('f-rf-mic', eeprom[0xA7]);
-  set('f-no-rx-off', eeprom[0xA9]);
+  set('f-rf-power', eeprom[0xA0]);
+  set('f-rf-vol', eeprom[0xA1]);
+  set('f-rf-mic', eeprom[0xA2]);
+  set('f-no-rx-off', eeprom[0xA4]);
 
-  setc('f-wifi-en', eeprom[0xB4]);
-  set('f-ip-proto', eeprom[0xB8]);
-  set('f-ip-port', (eeprom[0xB9] << 8) | eeprom[0xBA]);
-  setc('f-odo-en', eeprom[0xC0]);
+  setc('f-wifi-en', eeprom[0xAF]);
+  set('f-ip-proto', eeprom[0xB3]);
+  set('f-ip-port', (eeprom[0xB4] << 8) | eeprom[0xB5]);
+  setc('f-odo-en', eeprom[0xBB]);
 
-  set('f-icon2', String.fromCharCode(eeprom[0xC1]) + String.fromCharCode(eeprom[0xC2]));
-  set('f-icon2-time', (eeprom[0xC3] << 8) | eeprom[0xC4]);
-  set('f-ip-addr', readStr(0xC5, 31));
+  set('f-icon2', String.fromCharCode(eeprom[0xBC]) + String.fromCharCode(eeprom[0xBD]));
+  set('f-icon2-time', (eeprom[0xBE] << 8) | eeprom[0xBF]);
+  set('f-ip-addr', readStr(0xC0, 30));
 
-  set('f-wifi-ssid', readStr(0x105, 16));
-  set('f-wifi-pass', readStr(0x115, 16));
+  set('f-wifi-ssid', readStr(0x100, 16));
+  set('f-wifi-pass', readStr(0x110, 16));
 
-  set('f-altitude', (eeprom[0x12F] << 8) | eeprom[0x12E]);
+  set('f-altitude', (eeprom[0x129] << 8) | eeprom[0x12A]);
 
-  setc('f-x5-lastpos', eeprom[0x133]);
-  setc('f-x5-noknot', eeprom[0x134]);
-  setc('f-x5-alarm', eeprom[0x135]);
-  setc('f-x5-emer', eeprom[0x136]);
+  setc('f-x5-lastpos', eeprom[0x12E]);
+  setc('f-x5-noknot', eeprom[0x12F]);
+  setc('f-x5-alarm', eeprom[0x130]);
+  setc('f-x5-emer', eeprom[0x131]);
 
-  set('f-vol-tx', eeprom[0x1D8]);
-  set('f-vol-rx', eeprom[0x1D9]);
-  set('f-digi-delay', eeprom[0x1DA]);
-  set('f-digi-ch', eeprom[0x1DB]);
-  set('f-beacon-ch', eeprom[0x1DC]);
-  set('f-remote-code', readStr(0x1DD, 6));
-  set('f-x5-backlight', eeprom[0x1E4]);
+  set('f-vol-tx', eeprom[0x1D3]);
+  set('f-vol-rx', eeprom[0x1D4]);
+  set('f-digi-delay', eeprom[0x1D5]);
+  set('f-digi-ch', eeprom[0x1D6]);
+  set('f-beacon-ch', eeprom[0x1D7]);
+  set('f-remote-code', readStr(0x1D8, 7));
+  set('f-x5-backlight', eeprom[0x1DF]);
 
-  set('f-path1', readStr(0x1E5, 6).replace(/\0/g,''));
-  set('f-path1-hops', eeprom[0x1EC]);
-  set('f-path2', readStr(0x1ED, 6).replace(/\0/g,''));
-  set('f-path2-hops', eeprom[0x1F4]);
+  set('f-path1', readStr(0x1E0, 6));
+  set('f-path1-hops', eeprom[0x1E7]);
+  set('f-path2', readStr(0x1E8, 6));
+  set('f-path2-hops', eeprom[0x1EF]);
 
-  set('f-digi1', readStr(0x1F5, 6).replace(/\0/g,''));
-  setc('f-digi1-en', eeprom[0x1FC]);
-  set('f-digi2', readStr(0x1FD, 6).replace(/\0/g,''));
-  setc('f-digi2-en', eeprom[0x204]);
+  set('f-digi1', readStr(0x1F0, 6));
+  setc('f-digi1-en', eeprom[0x1F7]);
+  set('f-digi2', readStr(0x1F8, 6));
+  setc('f-digi2-en', eeprom[0x1FF]);
 
-  set('f-freq1', readFreq(0x87));
-  set('f-freq2', readFreq(0x90));
-  set('f-emer-msg', readStr(0x1B4, 31));
-  set('f-x5-bright', eeprom[0x1D6]);
+  const freqs = readFreqs(0x82);
+  set('f-freq1', freqs[0]);
+  set('f-freq2', freqs[1]);
+  set('f-emer-msg', readStr(0x1AF, 32));
+  set('f-x5-bright', eeprom[0x1D1]);
 }
 
 // ══════════════════════════════════════════
