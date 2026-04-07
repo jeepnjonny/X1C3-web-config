@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X1C3 Config Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e14;
+    --panel: #0f1520;
+    --panel2: #141c2a;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --text: #c8d8e8;
+    --text-dim: #4a6070;
+    --text-bright: #e8f4ff;
+    --danger: #ff3366;
+    --warn: #ffaa00;
+    --success: #00ff88;
+    --mono: 'Share Tech Mono', monospace;
+    --head: 'Rajdhani', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--head);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 16px 60px; }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 26px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,212,255,0.5);
+    letter-spacing: 2px;
+  }
+
+  .logo span { color: var(--accent2); }
+
+  header h1 {
+    font-family: var(--head);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .header-actions { margin-left: auto; display: flex; gap: 10px; }
+
+  /* ── Status bar ── */
+  #status-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  .status-dot.connected { background: var(--success); box-shadow: 0 0 8px var(--success); animation: pulse 2s infinite; }
+  .status-dot.error { background: var(--danger); }
+  .status-dot.busy { background: var(--warn); animation: pulse 0.5s infinite; }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  #status-text { color: var(--text); flex: 1; }
+  #status-hex { color: var(--text-dim); font-size: 11px; margin-left: auto; }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: var(--head);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    border: 1px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+    white-space: nowrap;
+  }
+
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-primary {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .btn-primary:not(:disabled):hover {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: 0 0 20px rgba(0,212,255,0.4);
+  }
+
+  .btn-success {
+    border-color: var(--success);
+    color: var(--success);
+  }
+  .btn-success:not(:disabled):hover {
+    background: var(--success);
+    color: var(--bg);
+    box-shadow: 0 0 20px rgba(0,255,136,0.4);
+  }
+
+  .btn-danger {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .btn-danger:not(:disabled):hover {
+    background: var(--danger);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(255,51,102,0.4);
+  }
+
+  .btn-warn {
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+  .btn-warn:not(:disabled):hover {
+    background: var(--warn);
+    color: var(--bg);
+  }
+
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+
+  /* ── Layout ── */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 800px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  /* ── Panels ── */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: var(--panel2);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .panel-header .panel-icon { color: var(--accent); font-size: 14px; }
+  .panel-body { padding: 16px; }
+
+  /* ── Form fields ── */
+  .field {
+    margin-bottom: 14px;
+  }
+
+  .field:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+
+  label .hint {
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #334455;
+    margin-left: 6px;
+  }
+
+  input[type=text], input[type=number], select, textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-bright);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input[type=text]:focus,
+  input[type=number]:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+  }
+
+  select option { background: var(--panel2); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(30,45,69,0.5);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+
+  .toggle-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .toggle {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 20px;
+    transition: background 0.2s;
+  }
+
+  .toggle input:checked + .toggle-track { background: var(--accent); }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+
+  .tab {
+    font-family: var(--head);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Hex dump ── */
+  #hex-dump {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--text-dim);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre;
+  }
+
+  #hex-dump .hl { color: var(--accent2); }
+
+  /* ── Log ── */
+  #log {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.7;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .log-info { color: var(--text-dim); }
+  .log-ok { color: var(--success); }
+  .log-err { color: var(--danger); }
+  .log-warn { color: var(--warn); }
+  .log-send { color: var(--accent); }
+  .log-recv { color: var(--accent2); }
+
+  /* ── Coord field ── */
+  .coord-row {
+    display: grid;
+    grid-template-columns: 1fr 60px;
+    gap: 6px;
+  }
+
+  /* ── Two-col fields ── */
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* ── Import / Export ── */
+  #file-drop {
+    border: 2px dashed var(--border);
+    border-radius: 6px;
+    padding: 30px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    letter-spacing: 1px;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  #file-drop.drag-over { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Freq field ── */
+  .freq-entry {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .freq-entry input { width: 120px; }
+
+  /* ── Connection panel ── */
+  #connect-panel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 16px;
+  }
+
+  /* ── No-serial notice ── */
+  #no-serial {
+    background: rgba(255,170,0,0.07);
+    border: 1px solid var(--warn);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--warn);
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 20px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="logo">X1C<span>3</span></div>
+    <div>
+      <div style="font-size:18px;font-weight:700;color:var(--text-bright);letter-spacing:1px;">APRS Tracker</div>
+      <h1>Configuration Tool</h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-warn btn-sm" id="btn-export" disabled>Export .bin</button>
+      <button class="btn btn-primary btn-sm" id="btn-import-file">Import .bin</button>
+      <input type="file" id="file-input" accept=".bin" style="display:none">
+    </div>
+  </header>
+
+  <div id="no-serial">
+    ⚠ Web Serial API not available. Use Chrome or Edge (desktop) to connect to a device. You can still import/export .bin files.
+  </div>
+
+  <!-- Status bar -->
+  <div id="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <div id="status-text">Not connected</div>
+    <div id="status-hex"></div>
+  </div>
+
+  <!-- Connection panel -->
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="panel-header"><span class="panel-icon">⬡</span> Serial Connection</div>
+    <div id="connect-panel">
+      <button class="btn btn-primary" id="btn-connect">Connect Device</button>
+      <button class="btn btn-primary" id="btn-read" disabled>Read Config</button>
+      <button class="btn btn-success" id="btn-write" disabled>Write Config</button>
+      <button class="btn btn-danger btn-sm" id="btn-reset" disabled>Factory Reset</button>
+      <button class="btn btn-warn btn-sm" id="btn-beacon" disabled>Force Beacon</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="identity">Identity</button>
+    <button class="tab" data-tab="beaconing">Beaconing</button>
+    <button class="tab" data-tab="location">Location</button>
+    <button class="tab" data-tab="bluetooth">Bluetooth / IP</button>
+    <button class="tab" data-tab="rf">RF Module</button>
+    <button class="tab" data-tab="digipeater">Digipeater</button>
+    <button class="tab" data-tab="advanced">Advanced</button>
+    <button class="tab" data-tab="raw">Raw / Hex</button>
+  </div>
+
+  <!-- ═══════════ TAB: Identity ═══════════ -->
+  <div class="tab-content active" id="tab-identity">
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Station Identity</div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Callsign <span class="hint">7 chars, pad 0x00</span></label>
+            <input type="text" id="f-callsign" maxlength="7" placeholder="KG7KMV">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>SSID <span class="hint">0–15</span></label>
+              <input type="number" id="f-ssid" min="0" max="15" placeholder="9">
+            </div>
+            <div class="field">
+              <label>Type <span class="hint">APRS data type</span></label>
+              <input type="text" id="f-type" maxlength="1" placeholder="!">
+            </div>
+          </div>
+          <div class="field">
+            <label>MIC-E Enable</label>
+            <label class="toggle"><input type="checkbox" id="f-mice-enable"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="field">
+            <label>MIC-E Code <span class="hint">0–15</span></label>
+            <select id="f-mice-code">
+              <option value="0">0 – Off Duty</option>
+              <option value="1">1 – En Route</option>
+              <option value="2">2 – In Service</option>
+              <option value="3">3 – Returning</option>
+              <option value="4">4 – Committed</option>
+              <option value="5">5 – Special</option>
+              <option value="6">6 – Priority</option>
+              <option value="7">7 – Emergency</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Icons & Message</div>
+        <div class="panel-body">
+          <div class="field-row">
+            <div class="field">
+              <label>Icon 1 <span class="hint">Table,Code</span></label>
+              <input type="text" id="f-icon1" maxlength="2" placeholder="/[">
+            </div>
+            <div class="field">
+              <label>Icon 2 <span class="hint">Stopped</span></label>
+              <input type="text" id="f-icon2" maxlength="2" placeholder="\P">
+            </div>
+          </div>
+          <div class="field">
+            <label>Icon 2 Time <span class="hint">secs stationary to switch, 0–65535</span></label>
+            <input type="number" id="f-icon2-time" min="0" max="65535" placeholder="180">
+          </div>
+          <div class="field">
+            <label>Beacon Message <span class="hint">up to 31 chars</span></label>
+            <input type="text" id="f-message" maxlength="31" placeholder="51X1C3">
+          </div>
+          <div class="field">
+            <label>Remote Code <span class="hint">6 chars for remote digi control</span></label>
+            <input type="text" id="f-remote-code" maxlength="6" placeholder="123456">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB: Beaconing ═══════════ -->
+  <div class="tab-content" id="tab-beaconing">
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Beacon Timing</div>
+        <div class="panel-body">
+          <div class="toggle-row">
+            <span class="toggle-label">Time Enable</span>
+            <label class="toggle"><input type="checkbox" id="f-time-enable"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Time Value <span class="hint">0–9999 seconds</span></label>
+            <input type="number" id="f-time-value" min="0" max="9999" placeholder="300">
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Manual Enable</span>
+            <label class="toggle"><input type="checkbox" id="f-manual-enable"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Queue Enable</span>
+            <label class="toggle"><input type="checkbox" id="f-queue-enable"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Queue Time <span class="hint">0–255 secs</span></label>
+            <input type="number" id="f-queue-time" min="0" max="255" placeholder="0">
+          </div>
+          <div class="field">
+            <label>PTT Delay <span class="hint">0–8 steps</span></label>
+            <input type="number" id="f-ptt-delay" min="0" max="8" placeholder="3">
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Smart Beaconing & Mode</div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Smart Mode</label>
+            <select id="f-smart-mode">
+              <option value="0">OFF</option>
+              <option value="1">1 – Car (20s base)</option>
+              <option value="2">2 – Bicycle (40s base)</option>
+              <option value="3">3 – Walking (60s base)</option>
+              <option value="4">4 – Slow Walking (90s base)</option>
+              <option value="5">5 – Nearly Stationary (120s base)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Site Type</label>
+            <select id="f-site-type">
+              <option value="0">Fixed</option>
+              <option value="1">Mobile (Sport)</option>
+              <option value="2">Weather Station</option>
+            </select>
+          </div>
+          <div class="section-label">Payload Options</div>
+          <div class="toggle-row">
+            <span class="toggle-label">Voltage</span>
+            <label class="toggle"><input type="checkbox" id="f-volt-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Temperature</span>
+            <label class="toggle"><input type="checkbox" id="f-temp-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Pressure</span>
+            <label class="toggle"><input type="checkbox" id="f-pres-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Mileage</span>
+            <label class="toggle"><input type="checkbox" id="f-mile-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Satellite Count</span>
+            <label class="toggle"><input type="checkbox" id="f-sat-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Odometer Enable</span>
+            <label class="toggle"><input type="checkbox" id="f-odo-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Digipeater Paths</div>
+        <div class="panel-body">
+          <div class="section-label">Path 1</div>
+          <div class="field-row">
+            <div class="field">
+              <label>Alias</label>
+              <input type="text" id="f-path1" maxlength="6" placeholder="WIDE1">
+            </div>
+            <div class="field">
+              <label>Hops <span class="hint">0–15</span></label>
+              <input type="number" id="f-path1-hops" min="0" max="15" placeholder="1">
+            </div>
+          </div>
+          <div class="section-label">Path 2</div>
+          <div class="field-row">
+            <div class="field">
+              <label>Alias</label>
+              <input type="text" id="f-path2" maxlength="6" placeholder="WIDE2">
+            </div>
+            <div class="field">
+              <label>Hops <span class="hint">0–15</span></label>
+              <input type="number" id="f-path2-hops" min="0" max="15" placeholder="1">
+            </div>
+          </div>
+          <div class="section-label">Audio</div>
+          <div class="field">
+            <label>Volume TX</label>
+            <select id="f-vol-tx">
+              <option value="0">-10.5 dB</option>
+              <option value="1">-9.0 dB</option>
+              <option value="2">-7.5 dB</option>
+              <option value="3">-6.0 dB</option>
+              <option value="4">-4.5 dB</option>
+              <option value="5">-4.0 dB</option>
+              <option value="6">-1.5 dB</option>
+              <option value="7">0 dB</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Volume RX</label>
+            <select id="f-vol-rx">
+              <option value="0">-10.5 dB</option>
+              <option value="1">-9.0 dB</option>
+              <option value="2">-7.5 dB</option>
+              <option value="3">-6.0 dB</option>
+              <option value="4">-4.5 dB</option>
+              <option value="5">-4.0 dB</option>
+              <option value="6">-1.5 dB</option>
+              <option value="7">0 dB</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> GPS & Timezone</div>
+        <div class="panel-body">
+          <div class="toggle-row">
+            <span class="toggle-label">GPS Enable</span>
+            <label class="toggle"><input type="checkbox" id="f-gps-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">GPS Save (power saving)</span>
+            <label class="toggle"><input type="checkbox" id="f-gps-save"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Beep RX</span>
+            <label class="toggle"><input type="checkbox" id="f-beep-rx"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Beep TX</span>
+            <label class="toggle"><input type="checkbox" id="f-beep-tx"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Timezone Offset <span class="hint">0–26 maps to -13..+13</span></label>
+            <input type="number" id="f-tz" min="0" max="26" placeholder="13">
+          </div>
+          <div class="field">
+            <label>No RX Power Off</label>
+            <select id="f-no-rx-off">
+              <option value="0">Off</option>
+              <option value="1">0.5h</option>
+              <option value="2">1.0h</option>
+              <option value="3">1.5h</option>
+              <option value="4">2h</option>
+              <option value="5">3h</option>
+              <option value="6">4h</option>
+              <option value="7">5h</option>
+              <option value="8">6h</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Altitude <span class="hint">0–9999m</span></label>
+            <input type="number" id="f-altitude" min="0" max="9999" placeholder="0">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB: Location ═══════════ -->
+  <div class="tab-content" id="tab-location">
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Fixed Position</div>
+        <div class="panel-body">
+          <p style="font-size:11px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Used in <strong style="color:var(--text)">Fixed</strong> site mode. Format per APRS spec page 23.<br>
+            Latitude: 7 digits+dot (e.g. <code>3135.90</code>), then N or S.<br>
+            Longitude: 7 digits+dot (e.g. <code>12021.80</code>), then E or W.
+          </p>
+          <div class="field">
+            <label>Latitude</label>
+            <div class="coord-row">
+              <input type="text" id="f-lat" maxlength="7" placeholder="3135.90">
+              <select id="f-lat-dir"><option>N</option><option>S</option></select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Longitude</label>
+            <div class="coord-row">
+              <input type="text" id="f-lon" maxlength="7" placeholder="12021.80">
+              <select id="f-lon-dir"><option>E</option><option>W</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Frequency Channels</div>
+        <div class="panel-body">
+          <p style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;">
+            Format: <code style="color:var(--accent)">1,&lt;freq&gt;,&lt;freq&gt;,0,3,0,0\r\n</code>
+          </p>
+          <div class="field">
+            <label>Frequency 1 <span class="hint">e.g. 144.6400</span></label>
+            <input type="text" id="f-freq1" placeholder="144.6400">
+          </div>
+          <div class="field">
+            <label>Frequency 2 <span class="hint">e.g. 144.6400</span></label>
+            <input type="text" id="f-freq2" placeholder="144.6400">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB: Bluetooth / IP ═══════════ -->
+  <div class="tab-content" id="tab-bluetooth">
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Bluetooth</div>
+        <div class="panel-body">
+          <div class="toggle-row">
+            <span class="toggle-label">BT Enable</span>
+            <label class="toggle"><input type="checkbox" id="f-bt-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>BT Out 1 (primary stream)</label>
+            <select id="f-bt-out1">
+              <option value="0">Off</option>
+              <option value="1">KISS Hex</option>
+              <option value="2">UI (human readable)</option>
+              <option value="3">GPWPL</option>
+              <option value="4">KISS ASCII</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>BT Out 2 (secondary mix)</label>
+            <select id="f-bt-out2">
+              <option value="0">Off</option>
+              <option value="1">GPS (raw NMEA)</option>
+              <option value="2">Rotator</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> WiFi & IP</div>
+        <div class="panel-body">
+          <div class="toggle-row">
+            <span class="toggle-label">WiFi Enable</span>
+            <label class="toggle"><input type="checkbox" id="f-wifi-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>WiFi Name <span class="hint">16 chars</span></label>
+            <input type="text" id="f-wifi-ssid" maxlength="16" placeholder="HiWiFi_3452AE_2a">
+          </div>
+          <div class="field">
+            <label>WiFi Password <span class="hint">16 chars</span></label>
+            <input type="text" id="f-wifi-pass" maxlength="16" placeholder="13013684000">
+          </div>
+          <div class="section-label">IP Settings</div>
+          <div class="field">
+            <label>IP Protocol</label>
+            <select id="f-ip-proto"><option value="0">TCP</option><option value="1">UDP</option></select>
+          </div>
+          <div class="field">
+            <label>IP Port <span class="hint">0–65535</span></label>
+            <input type="number" id="f-ip-port" min="0" max="65535" placeholder="2244">
+          </div>
+          <div class="field">
+            <label>IP Address / URL <span class="hint">31 chars</span></label>
+            <input type="text" id="f-ip-addr" maxlength="31" placeholder="202.141.176.2">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB: RF Module ═══════════ -->
+  <div class="tab-content" id="tab-rf">
+    <div class="panel" style="max-width:500px;">
+      <div class="panel-header"><span class="panel-icon">◈</span> RF Module</div>
+      <div class="panel-body">
+        <div class="field">
+          <label>RF Module Power</label>
+          <select id="f-rf-power">
+            <option value="0">Off</option>
+            <option value="1">On</option>
+            <option value="2">TX Only</option>
+            <option value="3">RX Only</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>RF Volume <span class="hint">1–9</span></label>
+          <input type="number" id="f-rf-vol" min="1" max="9" placeholder="6">
+        </div>
+        <div class="field">
+          <label>RF Mic <span class="hint">1–8</span></label>
+          <input type="number" id="f-rf-mic" min="1" max="8" placeholder="8">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB: Digipeater ═══════════ -->
+  <div class="tab-content" id="tab-digipeater">
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Digi 1</div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Alias <span class="hint">6 chars</span></label>
+            <input type="text" id="f-digi1" maxlength="6" placeholder="WIDE1">
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Enable</span>
+            <label class="toggle"><input type="checkbox" id="f-digi1-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Digi 2</div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Alias <span class="hint">6 chars</span></label>
+            <input type="text" id="f-digi2" maxlength="6" placeholder="WIDE2">
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">Enable</span>
+            <label class="toggle"><input type="checkbox" id="f-digi2-en"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Digi Timing</div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Digi Delay <span class="hint">0–5 sec</span></label>
+            <input type="number" id="f-digi-delay" min="0" max="5" placeholder="2">
+          </div>
+          <div class="field">
+            <label>Digi Channel</label>
+            <select id="f-digi-ch">
+              <option value="0">CH A</option>
+              <option value="1">CH B</option>
+              <option value="2">CH A+B</option>
+              <option value="3">BT</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Beacon Channel</label>
+            <select id="f-beacon-ch">
+              <option value="0">CH A</option>
+              <option value="1">CH B</option>
+              <option value="2">CH A+B</option>
+              <option value="3">BT</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB: Advanced ═══════════ -->
+  <div class="tab-content" id="tab-advanced">
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> X1C5 Options</div>
+        <div class="panel-body">
+          <div class="toggle-row">
+            <span class="toggle-label">Last Pos</span>
+            <label class="toggle"><input type="checkbox" id="f-x5-lastpos"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">&gt;6 Knot No TX</span>
+            <label class="toggle"><input type="checkbox" id="f-x5-noknot"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">30min Stop Alarm</span>
+            <label class="toggle"><input type="checkbox" id="f-x5-alarm"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">60min Emergency</span>
+            <label class="toggle"><input type="checkbox" id="f-x5-emer"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Brightness</label>
+            <select id="f-x5-bright">
+              <option value="0">Normal</option>
+              <option value="1">Auto</option>
+              <option value="2">High</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Backlight Time <span class="hint">0–255</span></label>
+            <input type="number" id="f-x5-backlight" min="0" max="255" placeholder="255">
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-icon">◈</span> Emergency</div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Emergency Message <span class="hint">up to 31 chars</span></label>
+            <input type="text" id="f-emer-msg" maxlength="31" placeholder="SOS">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB: Raw ═══════════ -->
+  <div class="tab-content" id="tab-raw">
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="panel-header"><span class="panel-icon">◈</span> EEPROM Hex Dump <span style="margin-left:auto;font-weight:400;letter-spacing:0;">512 bytes</span></div>
+      <div class="panel-body">
+        <div id="hex-dump">No data loaded. Connect device and click Read Config, or import a .bin file.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-icon">◈</span> Serial Log</div>
+      <div class="panel-body">
+        <div id="log"></div>
+        <button class="btn btn-warn btn-sm" style="margin-top:8px;" onclick="document.getElementById('log').innerHTML=''">Clear Log</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<script>
+// ══════════════════════════════════════════
+//  State
+// ══════════════════════════════════════════
+let port = null;
+let reader = null;
+let writer = null;
+let eeprom = new Uint8Array(512).fill(0xff);
+let hasData = false;
+
+// ══════════════════════════════════════════
+//  Serial check
+// ══════════════════════════════════════════
+if (!('serial' in navigator)) {
+  document.getElementById('no-serial').style.display = 'block';
+  document.getElementById('btn-connect').disabled = true;
+}
+
+// ══════════════════════════════════════════
+//  Logging
+// ══════════════════════════════════════════
+function log(msg, cls='log-info') {
+  const el = document.getElementById('log');
+  const ts = new Date().toLocaleTimeString();
+  el.innerHTML += `<div class="${cls}">[${ts}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function setStatus(text, state='') {
+  document.getElementById('status-text').textContent = text;
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot' + (state ? ' ' + state : '');
+}
+
+// ══════════════════════════════════════════
+//  Connect
+// ══════════════════════════════════════════
+document.getElementById('btn-connect').addEventListener('click', async () => {
+  if (port) { await disconnect(); return; }
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' });
+    writer = port.writable.getWriter();
+    setStatus('Connected', 'connected');
+    log('Port opened at 9600 baud', 'log-ok');
+    document.getElementById('btn-connect').textContent = 'Disconnect';
+    document.getElementById('btn-read').disabled = false;
+    document.getElementById('btn-write').disabled = !hasData;
+    document.getElementById('btn-reset').disabled = false;
+    document.getElementById('btn-beacon').disabled = false;
+  } catch(e) {
+    log('Connect failed: ' + e.message, 'log-err');
+    port = null;
+  }
+});
+
+async function disconnect() {
+  try {
+    if (writer) { writer.releaseLock(); writer = null; }
+    if (reader) { await reader.cancel(); reader = null; }
+    if (port) { await port.close(); port = null; }
+  } catch(e) {}
+  setStatus('Disconnected');
+  document.getElementById('btn-connect').textContent = 'Connect Device';
+  document.getElementById('btn-read').disabled = true;
+  document.getElementById('btn-write').disabled = true;
+  document.getElementById('btn-reset').disabled = true;
+  document.getElementById('btn-beacon').disabled = true;
+  log('Disconnected', 'log-warn');
+}
+
+// ══════════════════════════════════════════
+//  Serial I/O helpers
+// ══════════════════════════════════════════
+async function sendStr(str) {
+  const enc = new TextEncoder();
+  await writer.write(enc.encode(str));
+  log('→ ' + str.replace(/\r/g,'\\r').replace(/\n/g,'\\n'), 'log-send');
+}
+
+async function readBytes(expectedLen, timeoutMs=3000) {
+  const chunks = [];
+  let total = 0;
+  const deadline = Date.now() + timeoutMs;
+
+  const rd = port.readable.getReader();
+  try {
+    while (total < expectedLen && Date.now() < deadline) {
+      const { value, done } = await Promise.race([
+        rd.read(),
+        new Promise(r => setTimeout(() => r({ value: null, done: true }), 200))
+      ]);
+      if (done || !value) continue;
+      chunks.push(value);
+      total += value.length;
+    }
+  } finally {
+    rd.releaseLock();
+  }
+  const merged = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { merged.set(c, off); off += c.length; }
+  return merged;
+}
+
+async function sendCmd(cmd) {
+  await sendStr(cmd + '\r\n');
+}
+
+// ══════════════════════════════════════════
+//  Read config
+// ══════════════════════════════════════════
+document.getElementById('btn-read').addEventListener('click', readConfig);
+
+async function readConfig() {
+  setStatus('Reading…', 'busy');
+  log('Sending AT+SET=READ', 'log-send');
+  try {
+    await sendStr('AT+SET=READ\r\n');
+    // Response: HELLO (5 bytes) + 512 bytes EEPROM
+    const data = await readBytes(517, 4000);
+    log(`Received ${data.length} bytes`, 'log-recv');
+    if (data.length < 517) {
+      log(`Short read (${data.length} bytes). Expected 517.`, 'log-err');
+      setStatus('Read failed – short response', 'error');
+      return;
+    }
+    // Skip HELLO header (5 bytes)
+    const header = String.fromCharCode(...data.slice(0,5));
+    log(`Header: "${header}"`, 'log-info');
+    eeprom = data.slice(5, 517);
+    hasData = true;
+    document.getElementById('btn-write').disabled = false;
+    document.getElementById('btn-export').disabled = false;
+    updateUI();
+    renderHex();
+    setStatus('Config loaded ✓', 'connected');
+    log('Config parsed OK', 'log-ok');
+  } catch(e) {
+    log('Read error: ' + e.message, 'log-err');
+    setStatus('Read error', 'error');
+  }
+}
+
+// ══════════════════════════════════════════
+//  Write config
+// ══════════════════════════════════════════
+document.getElementById('btn-write').addEventListener('click', writeConfig);
+
+async function writeConfig() {
+  packEeprom();
+  setStatus('Writing…', 'busy');
+  log('Sending AT+SET=WRITE + 512 bytes', 'log-send');
+  try {
+    const cmd = 'AT+SET=WRITE';
+    const enc = new TextEncoder();
+    const header = enc.encode(cmd);
+    const payload = new Uint8Array(header.length + 512);
+    payload.set(header, 0);
+    payload.set(eeprom, header.length);
+    await writer.write(payload);
+    setStatus('Written ✓', 'connected');
+    log('Write complete', 'log-ok');
+    renderHex();
+  } catch(e) {
+    log('Write error: ' + e.message, 'log-err');
+    setStatus('Write error', 'error');
+  }
+}
+
+// ══════════════════════════════════════════
+//  Reset / Beacon
+// ══════════════════════════════════════════
+document.getElementById('btn-reset').addEventListener('click', async () => {
+  if (!confirm('Factory reset the device? This cannot be undone.')) return;
+  await sendCmd('AT+DEMO=ON');
+  log('Factory reset sent', 'log-warn');
+  setStatus('Reset sent', 'connected');
+});
+
+document.getElementById('btn-beacon').addEventListener('click', async () => {
+  await sendCmd('AT+TX=ON');
+  log('Force beacon sent', 'log-ok');
+});
+
+// ══════════════════════════════════════════
+//  Hex dump
+// ══════════════════════════════════════════
+function renderHex() {
+  const el = document.getElementById('hex-dump');
+  if (!hasData) return;
+  let out = '';
+  for (let row = 0; row < 512; row += 16) {
+    const addr = row.toString(16).toUpperCase().padStart(4,'0');
+    let hex = '', ascii = '';
+    for (let col = 0; col < 16 && row+col < 512; col++) {
+      const b = eeprom[row+col];
+      hex += b.toString(16).toUpperCase().padStart(2,'0') + ' ';
+      ascii += (b >= 32 && b < 127) ? String.fromCharCode(b) : '.';
+    }
+    out += `${addr}  ${hex.padEnd(48)}  ${ascii}\n`;
+  }
+  el.textContent = out;
+  document.getElementById('status-hex').textContent = `512 bytes`;
+}
+
+// ══════════════════════════════════════════
+//  EEPROM Layout helpers
+// ══════════════════════════════════════════
+function readStr(offset, len) {
+  let s = '';
+  for (let i = 0; i < len; i++) {
+    const b = eeprom[offset + i];
+    if (b === 0) break;
+    s += String.fromCharCode(b);
+  }
+  return s;
+}
+
+function writeStr(offset, len, str, padByte=0x00) {
+  for (let i = 0; i < len; i++) {
+    eeprom[offset+i] = i < str.length ? str.charCodeAt(i) : padByte;
+  }
+}
+
+function readFreq(offset) {
+  // format: "1,<f>,<f>,0,3,0,0\r\n"
+  let s = '';
+  for (let i = offset; i < offset+20; i++) {
+    const b = eeprom[i];
+    if (b === 0 || b === 0xff) break;
+    if (b === 13 || b === 10) break;
+    s += String.fromCharCode(b);
+  }
+  // extract freq from "1,144.6400,144.6400,0,3,0,0"
+  const parts = s.split(',');
+  return parts.length >= 2 ? parts[1] : '';
+}
+
+function writeFreq(offset, freqStr) {
+  const full = `1,${freqStr},${freqStr},0,3,0,0\r\n`;
+  for (let i = 0; i < 16; i++) {
+    eeprom[offset+i] = i < full.length ? full.charCodeAt(i) : 0xff;
+  }
+}
+
+// ══════════════════════════════════════════
+//  UI → EEPROM (parse UI)
+// ══════════════════════════════════════════
+function packEeprom() {
+  const g = id => document.getElementById(id);
+  const gi = id => parseInt(g(id).value) || 0;
+  const gc = id => g(id).checked ? 1 : 0;
+  const gs = id => g(id).value;
+
+  // Callsign (0x0D–0x13, 7 bytes)
+  writeStr(0x0D, 7, gs('f-callsign').padEnd(6,' '));
+
+  // SSID 0x14
+  eeprom[0x14] = gi('f-ssid');
+  // MIC-E enable 0x15
+  eeprom[0x15] = gc('f-mice-enable');
+  // MIC-E code 0x16
+  eeprom[0x16] = gi('f-mice-code');
+  // Type 0x17
+  eeprom[0x17] = gs('f-type').charCodeAt(0) || 0x21;
+  // Icon1 0x18–0x19
+  const ic1 = gs('f-icon1');
+  eeprom[0x18] = ic1.charCodeAt(0) || 0x2F;
+  eeprom[0x19] = ic1.charCodeAt(1) || 0x5B;
+  // BT Out2 0x1A, BT Out1 0x1B
+  eeprom[0x1A] = gi('f-bt-out2');
+  eeprom[0x1B] = gi('f-bt-out1');
+
+  // Time value 0x05–0x06 (2 bytes, decimal digits as ASCII? store as 2-byte LE int)
+  const tv = gi('f-time-value');
+  eeprom[0x05] = tv >> 8;
+  eeprom[0x06] = tv & 0xff;
+  // Time enable 0x07, Manual enable 0x08, Smart mode 0x09
+  eeprom[0x07] = gc('f-time-enable');
+  eeprom[0x08] = gc('f-manual-enable');
+  eeprom[0x09] = gi('f-smart-mode');
+  // Queue enable 0x0A, Queue time 0x0B
+  eeprom[0x0A] = gc('f-queue-enable');
+  eeprom[0x0B] = gi('f-queue-time');
+  // PTT delay 0x0C
+  eeprom[0x0C] = gi('f-ptt-delay');
+
+  // Latitude 0x25–0x2C (8 bytes: 7 digits + N/S)
+  const lat = gs('f-lat').padEnd(7,'\x00');
+  writeStr(0x25, 7, lat);
+  eeprom[0x2C] = gs('f-lat-dir') === 'N' ? 0x4E : 0x53;
+  eeprom[0x2D] = 0x00;
+
+  // Longitude 0x35–0x3D (9 bytes: 7 digits + E/W)
+  const lon = gs('f-lon').padEnd(7,'\x00');
+  writeStr(0x35, 7, lon);
+  eeprom[0x3C] = gs('f-lon-dir') === 'E' ? 0x45 : 0x57;
+  eeprom[0x3D] = 0x00;
+
+  // Site type 0x2F
+  eeprom[0x2F] = gi('f-site-type');
+  // GPS enable 0x30
+  eeprom[0x30] = gc('f-gps-en');
+  // Timezone offset 0x31
+  eeprom[0x31] = gi('f-tz');
+  // GPS save 0x32
+  eeprom[0x32] = gc('f-gps-save');
+  // Beep RX 0x33, Beep TX 0x34
+  eeprom[0x33] = gc('f-beep-rx');
+  eeprom[0x34] = gc('f-beep-tx');
+
+  // BT Enable 0x3F
+  eeprom[0x3F] = gc('f-bt-en');
+
+  // Pressure 0x40, Voltage 0x41, Temp 0x42, Mileage 0x43, Satellite 0x44
+  eeprom[0x40] = gc('f-pres-en');
+  eeprom[0x41] = gc('f-volt-en');
+  eeprom[0x42] = gc('f-temp-en');
+  eeprom[0x43] = gc('f-mile-en');
+  eeprom[0x44] = gc('f-sat-en');
+
+  // Message 0x45 (31 bytes + null)
+  writeStr(0x45, 31, gs('f-message'));
+  eeprom[0x45+gs('f-message').length] = 0x00;
+  // pad rest with 0xff
+  for (let i = 0x45+gs('f-message').length+1; i < 0x64; i++) eeprom[i] = 0xff;
+
+  // RF Module Power 0xA5, Volume 0xA6, Mic 0xA7
+  eeprom[0xA5] = gi('f-rf-power');
+  eeprom[0xA6] = gi('f-rf-vol');
+  eeprom[0xA7] = gi('f-rf-mic');
+
+  // No Rx Power Off 0xA9
+  eeprom[0xA9] = gi('f-no-rx-off');
+
+  // WiFi Enable 0xB4
+  eeprom[0xB4] = gc('f-wifi-en');
+  // IP Protocol 0xB8
+  eeprom[0xB8] = gi('f-ip-proto');
+  // IP Port 0xB9–0xBA (big-endian)
+  const port_ = gi('f-ip-port');
+  eeprom[0xB9] = port_ >> 8;
+  eeprom[0xBA] = port_ & 0xff;
+
+  // Odometer 0xC0
+  eeprom[0xC0] = gc('f-odo-en');
+
+  // Icon2 0xC1–0xC2
+  const ic2 = gs('f-icon2');
+  eeprom[0xC1] = ic2.charCodeAt(0) || 0x5C;
+  eeprom[0xC2] = ic2.charCodeAt(1) || 0x50;
+
+  // Icon2 Time 0xC3–0xC4 (big-endian 2 bytes)
+  const it = gi('f-icon2-time');
+  eeprom[0xC3] = it >> 8;
+  eeprom[0xC4] = it & 0xff;
+
+  // IP Address 0xC5 (31 bytes + 0xff)
+  writeStr(0xC5, 31, gs('f-ip-addr'), 0x00);
+  eeprom[0xC5 + gs('f-ip-addr').length] = 0x00;
+
+  // Wifi Name 0x105 (16 bytes)
+  writeStr(0x105, 16, gs('f-wifi-ssid'));
+  // Wifi password 0x115 (16 bytes)
+  writeStr(0x115, 16, gs('f-wifi-pass'));
+
+  // Altitude 0x12E (2 bytes LE)
+  const alt = gi('f-altitude');
+  eeprom[0x12E] = alt & 0xff;
+  eeprom[0x12F] = alt >> 8;
+
+  // X1C5 fields
+  eeprom[0x133] = gc('f-x5-lastpos');
+  eeprom[0x134] = gc('f-x5-noknot');
+  eeprom[0x135] = gc('f-x5-alarm');
+  eeprom[0x136] = gc('f-x5-emer');
+
+  // Volume TX 0x1D8, Volume RX 0x1D9
+  eeprom[0x1D8] = gi('f-vol-tx');
+  eeprom[0x1D9] = gi('f-vol-rx');
+  // Digi Delay 0x1DA, Digi Channel 0x1DB, Beacon Channel 0x1DC
+  eeprom[0x1DA] = gi('f-digi-delay');
+  eeprom[0x1DB] = gi('f-digi-ch');
+  eeprom[0x1DC] = gi('f-beacon-ch');
+
+  // Remote code 0x1DD (6 chars)
+  writeStr(0x1DD, 6, gs('f-remote-code'));
+  eeprom[0x1DD+gs('f-remote-code').length] = 0x00;
+
+  // X1C5 Backlight 0x1E4
+  eeprom[0x1E4] = gi('f-x5-backlight');
+
+  // Path1 0x1E5 (6 bytes), Path1 Hops 0x1EC
+  writeStr(0x1E5, 6, gs('f-path1'));
+  eeprom[0x1EC] = gi('f-path1-hops');
+  // Path2 0x1ED (6 bytes), Path2 Hops 0x1F4
+  writeStr(0x1ED, 6, gs('f-path2'));
+  eeprom[0x1F4] = gi('f-path2-hops');
+
+  // Digi1 0x1F5 (6 bytes), Digi1 Enable 0x1FC
+  writeStr(0x1F5, 6, gs('f-digi1'));
+  eeprom[0x1FC] = gc('f-digi1-en');
+  // Digi2 0x1FD (6 bytes), Digi2 Enable 0x204
+  writeStr(0x1FD, 6, gs('f-digi2'));
+  eeprom[0x204] = gc('f-digi2-en');
+
+  // Freq1 0x87, Freq2 0x90
+  writeFreq(0x87, gs('f-freq1'));
+  writeFreq(0x90, gs('f-freq2'));
+
+  // Emergency Message 0x1B4
+  writeStr(0x1B4, 31, gs('f-emer-msg'));
+  eeprom[0x1B4+gs('f-emer-msg').length] = 0x00;
+
+  // X1C5 Brightness 0x1D6
+  eeprom[0x1D6] = gi('f-x5-bright');
+}
+
+// ══════════════════════════════════════════
+//  EEPROM → UI (populate UI)
+// ══════════════════════════════════════════
+function updateUI() {
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
+  const setc = (id, val) => { const el = document.getElementById(id); if(el) el.checked = !!val; };
+
+  set('f-callsign', readStr(0x0D, 7).trimEnd());
+  set('f-ssid', eeprom[0x14]);
+  setc('f-mice-enable', eeprom[0x15]);
+  set('f-mice-code', eeprom[0x16]);
+  set('f-type', String.fromCharCode(eeprom[0x17]));
+  set('f-icon1', String.fromCharCode(eeprom[0x18]) + String.fromCharCode(eeprom[0x19]));
+  set('f-bt-out2', eeprom[0x1A]);
+  set('f-bt-out1', eeprom[0x1B]);
+
+  // Time value (2 bytes big-endian)
+  set('f-time-value', (eeprom[0x05] << 8) | eeprom[0x06]);
+  setc('f-time-enable', eeprom[0x07]);
+  setc('f-manual-enable', eeprom[0x08]);
+  set('f-smart-mode', eeprom[0x09]);
+  setc('f-queue-enable', eeprom[0x0A]);
+  set('f-queue-time', eeprom[0x0B]);
+  set('f-ptt-delay', eeprom[0x0C]);
+
+  // Latitude
+  set('f-lat', readStr(0x25, 7));
+  set('f-lat-dir', eeprom[0x2C] === 0x53 ? 'S' : 'N');
+  // Longitude
+  set('f-lon', readStr(0x35, 7));
+  set('f-lon-dir', eeprom[0x3C] === 0x57 ? 'W' : 'E');
+
+  set('f-site-type', eeprom[0x2F]);
+  setc('f-gps-en', eeprom[0x30]);
+  set('f-tz', eeprom[0x31]);
+  setc('f-gps-save', eeprom[0x32]);
+  setc('f-beep-rx', eeprom[0x33]);
+  setc('f-beep-tx', eeprom[0x34]);
+
+  setc('f-bt-en', eeprom[0x3F]);
+  setc('f-pres-en', eeprom[0x40]);
+  setc('f-volt-en', eeprom[0x41]);
+  setc('f-temp-en', eeprom[0x42]);
+  setc('f-mile-en', eeprom[0x43]);
+  setc('f-sat-en', eeprom[0x44]);
+
+  // Message
+  set('f-message', readStr(0x45, 31));
+
+  set('f-rf-power', eeprom[0xA5]);
+  set('f-rf-vol', eeprom[0xA6]);
+  set('f-rf-mic', eeprom[0xA7]);
+  set('f-no-rx-off', eeprom[0xA9]);
+
+  setc('f-wifi-en', eeprom[0xB4]);
+  set('f-ip-proto', eeprom[0xB8]);
+  set('f-ip-port', (eeprom[0xB9] << 8) | eeprom[0xBA]);
+  setc('f-odo-en', eeprom[0xC0]);
+
+  set('f-icon2', String.fromCharCode(eeprom[0xC1]) + String.fromCharCode(eeprom[0xC2]));
+  set('f-icon2-time', (eeprom[0xC3] << 8) | eeprom[0xC4]);
+  set('f-ip-addr', readStr(0xC5, 31));
+
+  set('f-wifi-ssid', readStr(0x105, 16));
+  set('f-wifi-pass', readStr(0x115, 16));
+
+  set('f-altitude', (eeprom[0x12F] << 8) | eeprom[0x12E]);
+
+  setc('f-x5-lastpos', eeprom[0x133]);
+  setc('f-x5-noknot', eeprom[0x134]);
+  setc('f-x5-alarm', eeprom[0x135]);
+  setc('f-x5-emer', eeprom[0x136]);
+
+  set('f-vol-tx', eeprom[0x1D8]);
+  set('f-vol-rx', eeprom[0x1D9]);
+  set('f-digi-delay', eeprom[0x1DA]);
+  set('f-digi-ch', eeprom[0x1DB]);
+  set('f-beacon-ch', eeprom[0x1DC]);
+  set('f-remote-code', readStr(0x1DD, 6));
+  set('f-x5-backlight', eeprom[0x1E4]);
+
+  set('f-path1', readStr(0x1E5, 6).replace(/\0/g,''));
+  set('f-path1-hops', eeprom[0x1EC]);
+  set('f-path2', readStr(0x1ED, 6).replace(/\0/g,''));
+  set('f-path2-hops', eeprom[0x1F4]);
+
+  set('f-digi1', readStr(0x1F5, 6).replace(/\0/g,''));
+  setc('f-digi1-en', eeprom[0x1FC]);
+  set('f-digi2', readStr(0x1FD, 6).replace(/\0/g,''));
+  setc('f-digi2-en', eeprom[0x204]);
+
+  set('f-freq1', readFreq(0x87));
+  set('f-freq2', readFreq(0x90));
+  set('f-emer-msg', readStr(0x1B4, 31));
+  set('f-x5-bright', eeprom[0x1D6]);
+}
+
+// ══════════════════════════════════════════
+//  Import / Export
+// ══════════════════════════════════════════
+document.getElementById('btn-export').addEventListener('click', () => {
+  packEeprom();
+  const blob = new Blob([eeprom], { type: 'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'x1c3-config.bin';
+  a.click();
+  log('Exported x1c3-config.bin', 'log-ok');
+});
+
+document.getElementById('btn-import-file').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader2 = new FileReader();
+  reader2.onload = ev => {
+    const buf = new Uint8Array(ev.target.result);
+    // Accept with or without HELLO header
+    if (buf.length === 517) {
+      eeprom = buf.slice(5);
+    } else if (buf.length === 512) {
+      eeprom = buf;
+    } else {
+      log(`Invalid file size: ${buf.length}. Expected 512 or 517 bytes.`, 'log-err');
+      return;
+    }
+    hasData = true;
+    document.getElementById('btn-write').disabled = !port;
+    document.getElementById('btn-export').disabled = false;
+    updateUI();
+    renderHex();
+    log(`Imported ${file.name} (${eeprom.length} bytes)`, 'log-ok');
+  };
+  reader2.readAsArrayBuffer(file);
+  e.target.value = '';
+});
+
+// ══════════════════════════════════════════
+//  Tabs
+// ══════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// Init log
+log('X1C3 Config Tool ready. Connect your device via USB (CH340 driver required).', 'log-info');
+log('Tip: Use Chrome or Edge for Web Serial support.', 'log-info');
+</script>
+</body>
+</html>
